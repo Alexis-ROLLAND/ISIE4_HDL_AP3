@@ -15,11 +15,17 @@ localparam 	INITIAL_STATE = PAS1;	// formally sets the initial state to PAS1
 //----------------------------------------------------------------------------
 
 input nStep;		// Horloge principale
-input nReset;		// Entrée de Reset (active état bas)
+input nReset;		// Entrée de Reset externe (active état bas)
 input MotDir ;		// Gestion du sens de rotation
 input OnOff;		// Commande de l'alimentation des phases
 input Hold;			// Maintien du couple
 input FullnHalf;	// Commande en pas entiers ou 1/2 pas
+
+//----------------------------------------------------------------------------
+// Package all inputs into a single "ordered" vector
+wire[3:0] 	InputVector;
+assign		InputVector = {OnOff,Hold,MotDir,FullnHalf};
+//----------------------------------------------------------------------------	
 
 output[3:0] Phase;
 reg[3:0] Phase;
@@ -57,96 +63,80 @@ end
 
 //----------------------------------------------------------------------------
 // Process #2 : Transitions -  Codage FSM 
-always @(EtatPresent, MotDir, OnOff, FullnHalf,Hold)
+always @(EtatPresent, InputVector)
 begin
-	if (OnOff == 0) EtatFutur <= IDLE;	// OnOff identifié comme signal de type "Reset interne"
-	else
-	begin
-		case(EtatPresent)
-			//------------------------ IDLE ---------------------------------------
-			IDLE : 	if ((OnOff == 0) || (Hold == 1)) EtatFutur <= IDLE;
-						else EtatFutur <= PAS1;	// Loi de De Morgan
-			//------------------------ PAS1 ---------------------------------------
-			PAS1 : 	if (Hold == 1) EtatFutur <= PAS1;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS2;		// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS12;	// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS4;		// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS41;	// Counter ClockWise, Half step
-						end
-			//------------------------ PAS12 ---------------------------------------
-			PAS12 : 	if (Hold == 1) EtatFutur <= PAS12;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS23;	// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS2;		// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS41;	// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS1;		// Counter ClockWise, Half step
-						end
-		
-			//------------------------ PAS2 ---------------------------------------
-			PAS2 : 	if (Hold == 1) EtatFutur <= PAS2;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS3;		// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS23;	// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS1;		// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS12;	// Counter ClockWise, Half step
-						end
-			//------------------------ PAS23 ---------------------------------------
-			PAS23 : 	if (Hold == 1) EtatFutur <= PAS23;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS34;	// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS3;		// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS12;	// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS2;		// Counter ClockWise, Half step
-						end
-			//------------------------ PAS3 ---------------------------------------
-			PAS3 : 	if (Hold == 1) EtatFutur <= PAS3;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS4;		// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS34;	// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS2;		// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS23;	// Counter ClockWise, Half step
-						end
-			//------------------------ PAS34 ---------------------------------------
-			PAS34 : 	if (Hold == 1) EtatFutur <= PAS34;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS41;	// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS4;		// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS23;	// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS3;		// Counter ClockWise, Half step
-						end
-			//------------------------ PAS4 ---------------------------------------
-			PAS4 : 	if (Hold == 1) EtatFutur <= PAS4;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS1;		// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS41;	// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS3;		// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS34;	// Counter ClockWise, Half step
-						end
-			//------------------------ PAS41 ---------------------------------------
-			PAS41 : 	if (Hold == 1) EtatFutur <= PAS34;	// No need to add " && OnOff == 0 "
-						else 	// We know now that Hold is low. No need to add this in the futures "if"
-						begin
-							if 		( (MotDir == 1) && (FullnHalf == 1) ) EtatFutur <= PAS12;	// ClockWise, Full step
-							else if 	( (MotDir == 1) && (FullnHalf == 0) ) EtatFutur <= PAS1;		// ClockWise, Half step
-							else if 	( (MotDir == 0) && (FullnHalf == 1) ) EtatFutur <= PAS34;	// Counter ClockWise, Half step
-							else														  EtatFutur <= PAS4;		// Counter ClockWise, Half step
-						end
-			//--------------------------- Security	------------------------------
-			default : EtatFutur <= IDLE;
-					
-					
-					
-					
+	case(EtatPresent)
+		IDLE : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= IDLE;	// Hold Mode
+						4'b10xx : EtatFutur <= PAS1;	// Go to "normal" mode
+					endcase
+		PAS1 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS12;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS41;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS4;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS12;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS2;	// ClockWise - Full Step
+					endcase
+		PAS12 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS12;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS1;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS41;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS2;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS23;	// ClockWise - Full Step
+					endcase
+		PAS2 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS2;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS12;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS1;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS23;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS3;	// ClockWise - Full Step
+					endcase
+		PAS23 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS23;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS2;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS12;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS3;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS34;	// ClockWise - Full Step
+					endcase
+		PAS3 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS3;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS23;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS2;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS34;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS4;	// ClockWise - Full Step
+					endcase
+		PAS34 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS34;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS3;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS23;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS4;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS41;	// ClockWise - Full Step
+					endcase
+		PAS4 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS4;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS34;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS3;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS41;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS1;	// ClockWise - Full Step
+					endcase
+		PAS41 : 	casex(InputVector)
+						4'b0xxx : EtatFutur <= IDLE;	// Stop Mode
+						4'b11xx : EtatFutur <= PAS41;	// Hold Mode
+						4'b1000 : EtatFutur <= PAS4;	// Counter ClockWise - Half Step
+						4'b1001 : EtatFutur <= PAS34;	// Counter ClockWise - Full Step
+						4'b1010 : EtatFutur <= PAS1;	// ClockWise - Half Step
+						4'b1011 : EtatFutur <= PAS12;	// ClockWise - Full Step
+					endcase
+		default : EtatFutur <= IDLE;					// Security
 	endcase
-	end
 end
 endmodule
 
