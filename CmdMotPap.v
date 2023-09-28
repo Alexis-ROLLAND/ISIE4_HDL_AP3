@@ -27,8 +27,8 @@ wire[3:0] 	InputVector;
 assign		InputVector = {OnOff,Hold,MotDir,FullnHalf};
 //----------------------------------------------------------------------------	
 
-output[3:0] Phase;
-reg[3:0] Phase;
+output[3:0] Phase;	// output vector
+reg[3:0] Phase;		// is a reg
 
 //----------------------------------------------------------------------------
 reg[3:0] EtatPresent = INITIAL_STATE;
