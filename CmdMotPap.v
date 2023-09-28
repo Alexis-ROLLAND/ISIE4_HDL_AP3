@@ -21,8 +21,8 @@ input OnOff;		// Commande de l'alimentation des phases
 input Hold;			// Maintien du couple
 input FullnHalf;	// Commande en pas entiers ou 1/2 pas
 
-output[3:0] Phase;
-reg[3:0] Phase;
+output[3:0] Phase;	// Output vector
+reg[3:0] Phase;		// is a reg
 
 //----------------------------------------------------------------------------
 reg[3:0] EtatPresent = INITIAL_STATE;
